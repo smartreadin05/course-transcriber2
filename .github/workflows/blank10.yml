@@ -1,0 +1,49 @@
+name: Test Mail Cloud Direct Endpoint
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test direct endpoint
+        run: |
+          python3 - <<'PY'
+          import requests
+
+          original = "https://cloud.mail.ru/public/x544/z3kHECF7M"
+
+          direct = (
+              "https://cloclo55.cloud.mail.ru"
+              "/public/KfXpnvqXVqo5ZpUTunF/g/no"
+              "/x544/z3kHECF7M"
+          )
+
+          print("Original:", original)
+          print("Direct:", direct)
+          print()
+
+          r = requests.get(
+              direct,
+              headers={
+                  "User-Agent": "Mozilla/5.0",
+                  "Referer": original,
+                  "Accept": "*/*"
+              },
+              timeout=60,
+              allow_redirects=False
+          )
+
+          print("HTTP:", r.status_code)
+          print("Content-Type:", r.headers.get("content-type"))
+          print("Content-Length:", r.headers.get("content-length"))
+          print("Location:", r.headers.get("location"))
+          print("Content-Disposition:", r.headers.get("content-disposition"))
+          print("Response bytes:", len(r.content))
+          print()
+
+          print("First 500 bytes:")
+          print(r.content[:500])
+          PY
