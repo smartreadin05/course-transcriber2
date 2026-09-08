@@ -1,0 +1,74 @@
+name: Inspect Mail Cloud Public Folder
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract Mail Cloud data
+        run: |
+          python3 - <<'PY'
+          import re
+          import json
+          import requests
+
+          url = "https://cloud.mail.ru/public/x544/z3kHECF7M"
+
+          r = requests.get(
+              url,
+              headers={
+                  "User-Agent": "Mozilla/5.0",
+                  "Accept-Language": "ru-RU,ru;q=0.9"
+              },
+              timeout=60
+          )
+
+          text = r.text
+
+          print("HTTP:", r.status_code)
+          print("SIZE:", len(r.content))
+          print()
+
+          # Ищем window.cloudSettings
+          m = re.search(
+              r'window\.cloudSettings\s*=\s*(\{.*?\})\s*;',
+              text,
+              re.S
+          )
+
+          if not m:
+              print("cloudSettings: NOT FOUND")
+          else:
+              settings_text = m.group(1)
+
+              print("cloudSettings: FOUND")
+              print("Length:", len(settings_text))
+              print()
+
+              # Самое важное для публичных ссылок
+              for marker in ["weblink_get", "weblink", "not_exists"]:
+                  pos = settings_text.find(marker)
+
+                  if pos >= 0:
+                      print(f"{marker}: FOUND at {pos}")
+                      start = max(0, pos - 500)
+                      end = min(len(settings_text), pos + 2500)
+                      print(settings_text[start:end])
+                      print("\n" + "=" * 80 + "\n")
+                  else:
+                      print(f"{marker}: NOT FOUND")
+
+          # Дополнительно ищем все URL cloud.mail.ru / datacloudmail.ru
+          urls = sorted(set(re.findall(
+              r'https?://[^"\'<>\s]+',
+              text
+          )))
+
+          print("\nDetected URLs:")
+          for u in urls:
+              if "mail.ru" in u:
+                  print(u[:500])
+          PY
