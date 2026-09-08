@@ -1,0 +1,86 @@
+name: Test Mail Cloud Download API
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test direct access
+        run: |
+          python3 - <<'PY'
+          import re
+          import requests
+
+          PUBLIC_URL = "https://cloud.mail.ru/public/x544/z3kHECF7M"
+
+          session = requests.Session()
+          session.headers.update({
+              "User-Agent": "Mozilla/5.0",
+              "Accept-Language": "ru-RU,ru;q=0.9"
+          })
+
+          # 1. Получаем HTML
+          r = session.get(PUBLIC_URL, timeout=60)
+          r.raise_for_status()
+          html = r.text
+
+          # 2. Получаем weblink_get
+          m = re.search(
+              r'"weblink_get":\{"count":"1","url":"([^"]+)"\}',
+              html
+          )
+
+          if not m:
+              print("ERROR: weblink_get not found")
+              raise SystemExit(1)
+
+          storage_url = m.group(1)
+
+          # 3. Получаем download token
+          token_url = "https://cloud.mail.ru/api/v2/tokens/download"
+
+          tr = session.get(token_url, timeout=60)
+          tr.raise_for_status()
+
+          tm = re.search(r'"token":"([^"]+)"', tr.text)
+
+          if not tm:
+              print("ERROR: download token not found")
+              print(tr.text[:1000])
+              raise SystemExit(1)
+
+          token = tm.group(1)
+
+          # 4. Путь публичного объекта
+          file_path = PUBLIC_URL.split("/public/", 1)[1]
+
+          # 5. Проверяем прямой endpoint
+          direct_url = f"{storage_url}/{file_path}?key={token}"
+
+          print("Storage URL:", storage_url)
+          print("Public path:", file_path)
+          print("Direct URL:", direct_url[:180] + "...")
+          print()
+
+          dr = session.get(
+              direct_url,
+              headers={"Referer": PUBLIC_URL},
+              stream=True,
+              timeout=60,
+              allow_redirects=False
+          )
+
+          print("HTTP:", dr.status_code)
+          print("Content-Type:", dr.headers.get("content-type"))
+          print("Content-Length:", dr.headers.get("content-length"))
+          print("Location:", dr.headers.get("location"))
+          print("Content-Disposition:", dr.headers.get("content-disposition"))
+
+          # Читаем только первые байты, НЕ весь файл
+          first = next(dr.iter_content(chunk_size=1024), b"")
+
+          print("First bytes:", first[:100])
+          PY
