@@ -1,0 +1,64 @@
+name: Inspect Mail Cloud Public Folder
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Inspect public folder
+        env:
+          PUBLIC_URL: "https://cloud.mail.ru/public/x544/z3kHECF7M"
+        run: |
+          python3 - <<'PY'
+          import json
+          import re
+          import requests
+
+          url = "https://cloud.mail.ru/public/x544/z3kHECF7M"
+
+          headers = {
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                            "(KHTML, like Gecko) Chrome/140.0 Safari/537.36"
+          }
+
+          print("URL:", url)
+
+          r = requests.get(
+              url,
+              headers=headers,
+              timeout=60,
+              allow_redirects=True
+          )
+
+          print("HTTP:", r.status_code)
+          print("Final URL:", r.url)
+          print("Content-Type:", r.headers.get("content-type"))
+          print("Response size:", len(r.content), "bytes")
+          print()
+
+          text = r.text
+
+          # Ищем характерные служебные данные Mail Cloud.
+          patterns = [
+              r'weblink_get',
+              r'weblink',
+              r'folder',
+              r'file',
+              r'items',
+              r'home',
+              r'name'
+          ]
+
+          print("Detected markers:")
+          for p in patterns:
+              print(f"  {p}: {bool(re.search(p, text, re.I))}")
+
+          print()
+          print("First 5000 characters of response:")
+          print("=" * 80)
+          print(text[:5000])
+          print("=" * 80)
+          PY
