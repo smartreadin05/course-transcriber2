@@ -1,0 +1,71 @@
+name: Analyze Mail Cloud API
+
+on:
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Analyze public folder
+        run: |
+          python3 - <<'PY'
+          import re
+          import requests
+
+          url = "https://cloud.mail.ru/public/x544/z3kHECF7M"
+
+          r = requests.get(
+              url,
+              headers={"User-Agent": "Mozilla/5.0"},
+              timeout=60
+          )
+
+          text = r.text
+
+          print("HTTP:", r.status_code)
+          print("SIZE:", len(text))
+          print()
+
+          # Ищем URL/API, которые упоминаются рядом с public/weblink.
+          patterns = [
+              r'https?://[^"\'\s<>]+',
+              r'weblink_get[^,]{0,1000}',
+              r'public[^,]{0,1000}',
+              r'api[^,]{0,500}',
+          ]
+
+          found = set()
+
+          for pattern in patterns:
+              for match in re.findall(pattern, text, re.I):
+                  if isinstance(match, tuple):
+                      match = match[0]
+
+                  if any(x in match.lower() for x in [
+                      "weblink",
+                      "public",
+                      "/api/",
+                      "cloud.mail.ru"
+                  ]):
+                      found.add(match[:1500])
+
+          print("=== POSSIBLE API DATA ===")
+
+          for item in sorted(found):
+              print(item)
+              print("-" * 80)
+
+          print()
+          print("=== SCRIPT FILES ===")
+
+          scripts = re.findall(
+              r'<script[^>]+src=["\']([^"\']+)',
+              text,
+              re.I
+          )
+
+          for s in scripts:
+              print(s)
+          PY
