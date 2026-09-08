@@ -1,0 +1,26 @@
+name: Test Mail Cloud Folder
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Inspect public folder
+        run: |
+          python3 - <<'PY'
+          import requests
+
+          url = "https://cloud.mail.ru/public/x544/z3kHECF7M"
+
+          r = requests.get(url, timeout=30)
+
+          print("HTTP:", r.status_code)
+          print("Content-Type:", r.headers.get("content-type"))
+          print("Size:", len(r.content), "bytes")
+          print()
+          print("First 2000 characters:")
+          print(r.text[:2000])
+          PY
